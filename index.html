@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Мини-апп — Выбор карт</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card-back:#b88a5a;
+      --card-front:#fff;
+      --accent:#e9d8a6;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+    body{
+      background: linear-gradient(180deg,#071022 0%, #0f1724 100%);
+      color:var(--accent);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      box-sizing:border-box;
+    }
+
+    .app {
+      width:100%;
+      max-width:720px;
+      background: rgba(255,255,255,0.02);
+      border-radius:12px;
+      padding:18px;
+      box-shadow: 0 6px 30px rgba(2,6,23,0.6);
+      text-align:center;
+    }
+
+    h1{margin:0 0 10px;font-size:20px}
+    p.lead{margin:0 0 18px;color:rgba(233,216,166,0.9)}
+
+    .cards {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:14px;
+      justify-items:center;
+      margin-bottom:18px;
+    }
+
+    /* карточка */
+    .card {
+      width:110px;
+      height:160px;
+      perspective:1000px;
+    }
+
+    .card-inner {
+      width:100%;
+      height:100%;
+      position:relative;
+      transform-style:preserve-3d;
+      transition: transform 500ms cubic-bezier(.2,.9,.3,1);
+      cursor:pointer;
+      border-radius:10px;
+    }
+
+    .card.flipped .card-inner {
+      transform: rotateY(180deg) rotateZ(var(--rot,0deg));
+    }
+
+    .card-face {
+      position:absolute;
+      width:100%;
+      height:100%;
+      backface-visibility:hidden;
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      font-size:18px;
+      box-shadow:0 8px 18px rgba(2,6,23,0.6), inset 0 -4px 6px rgba(0,0,0,0.15);
+    }
+
+    .card-back {
+      background: linear-gradient(135deg,var(--card-back) 0%, #7b5a3a 100%);
+      color:#fff;
+    }
+
+    .card-front {
+      background: linear-gradient(180deg,#fff,#f3ecd9);
+      transform: rotateY(180deg);
+      color:#222;
+      padding:8px;
+      box-sizing:border-box;
+    }
+
+    .card-number {
+      font-size:14px;
+      color:rgba(0,0,0,0.6);
+      margin-top:8px;
+    }
+
+    .controls {
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .btn {
+      background:transparent;
+      border:1px solid rgba(233,216,166,0.15);
+      color:var(--accent);
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    .btn.primary {
+      background:linear-gradient(90deg,#d4b36a,#f0e5b7);
+      color:#0b0b0b;
+      border:none;
+    }
+
+    .hint {font-size:13px;color:rgba(233,216,166,0.8);margin-bottom:8px}
+    .small {font-size:12px;color:rgba(233,216,166,0.65)}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Мини-апп — Выберите 2 карты</h1>
+    <p class="lead">Коснитесь двух карт. Они перевернутся и отправятся в бот.</p>
+
+    <div class="cards" id="cards"></div>
+
+    <div class="controls">
+      <button class="btn" id="resetBtn">Сбросить выбор</button>
+      <button class="btn primary" id="sendBtn" disabled>Отправить выбор</button>
+    </div>
+
+    <p class="hint">Выбранные карты: <span id="selectedCount">0</span>/2</p>
+    <p class="small">Закройте приложение, если передумали — кнопка вверху.</p>
+  </div>
+
+  <script>
+    // Проверяем Telegram WebApp
+    const tg = window.Telegram?.WebApp;
+    if (!tg) {
+      console.warn("Не обнаружен Telegram WebApp. Тестируем локально.");
+    } else {
+      tg.expand(); // расширить окно (по желанию)
+    }
+
+    // Пример — 6 карт (номера 1..6). Можно заменить на изображения.
+    const cardsData = [1,2,3,4,5,6];
+    const cardsContainer = document.getElementById("cards");
+    const selectedCountEl = document.getElementById("selectedCount");
+    const sendBtn = document.getElementById("sendBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let selected = []; // индексы выбранных карт (по значению из cardsData)
+    let locked = false;
+
+    function createCard(value, idx){
+      const card = document.createElement("div");
+      card.className = "card";
+      card.dataset.value = value;
+      card.style.setProperty('--rot', (Math.random()*10 - 5).toFixed(2) + "deg"); // небольшая случайная ротация
+      const inner = document.createElement("div");
+      inner.className = "card-inner";
+
+      const back = document.createElement("div");
+      back.className = "card-face card-back";
+      back.innerHTML = "<div>Таро</div>";
+
+      const front = document.createElement("div");
+      front.className = "card-face card-front";
+      front.innerHTML = `<div>Карта ${value}<div class="card-number">(${value})</div></div>`;
+
+      inner.appendChild(back);
+      inner.appendChild(front);
+      card.appendChild(inner);
+
+      card.addEventListener("click", () => onCardClick(card, value));
+      return card;
+    }
+
+    function renderCards(){
+      cardsContainer.innerHTML = "";
+      for (let i=0;i<cardsData.length;i++){
+        const c = createCard(cardsData[i], i);
+        cardsContainer.appendChild(c);
+      }
+    }
+
+    function onCardClick(cardEl, value){
+      if (locked) return;
+      const isSelected = selected.includes(value);
+      // если не выбрано и выбранных уже 2 — игнор
+      if (!isSelected && selected.length >= 2) return;
+
+      if (!isSelected){
+        // ставим выбранный
+        selected.push(value);
+        cardEl.classList.add("flipped");
+      } else {
+        // отмена выбора
+        selected = selected.filter(v => v !== value);
+        cardEl.classList.remove("flipped");
+      }
+
+      updateUI();
+
+      // Если выбрали 2 — можно сразу отправлять (или дать кнопку)
+      if (selected.length === 2){
+        // лёгкая задержка, чтобы анимация переворота закончилась
+        setTimeout(() => {
+          // разблокируем кнопку отправки
+          sendBtn.disabled = false;
+        }, 350);
+      } else {
+        sendBtn.disabled = true;
+      }
+    }
+
+    function updateUI(){
+      selectedCountEl.textContent = selected.length;
+    }
+
+    resetBtn.addEventListener("click", () => {
+      selected = [];
+      const all = document.querySelectorAll(".card");
+      all.forEach(c => c.classList.remove("flipped"));
+      sendBtn.disabled = true;
+      updateUI();
+    });
+
+    sendBtn.addEventListener("click", () => {
+      if (selected.length !== 2) return;
+      locked = true;
+      sendBtn.disabled = true;
+      // Подготовим полезную нагрузку
+      const payload = {
+        selected: selected,
+        // можно отправить вопрос, если он был передан через initDataUnsafe (bot может передать)
+        question: (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? null : null
+      };
+
+      const jsonStr = JSON.stringify(payload);
+
+      if (tg && tg.sendData){
+        // Отправляем данные боту
+        tg.sendData(jsonStr);
+        // Закрываем мини-апп
+        tg.close();
+      } else {
+        // для локального теста — просто алерт
+        alert("Отправка (эмуляция): " + jsonStr);
+        locked = false;
+      }
+    });
+
+    // Инициализация
+    renderCards();
+    updateUI();
+  </script>
+</body>
+</html>

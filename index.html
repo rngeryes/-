@@ -5,82 +5,91 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tarot Selector</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
     <style>
         body {
             background: url('bg.jpeg') no-repeat center center fixed;
             background-size: cover;
-            color: #fff;
             font-family: sans-serif;
+            margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             min-height: 100vh;
-            margin: 0;
+            color: #fff;
             overflow: hidden;
             position: relative;
         }
 
-        /* Затемнение фона для лучшей читаемости */
+body {
+    justify-content: center;
+}
+
+
         body::before {
-            content: '';
+            content: "";
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.4);
+            inset: 0;
+            background: rgba(0,0,0,0.45);
             z-index: -1;
         }
 
         h2 {
-            margin-bottom: 20px;
-            font-weight: 300;
-            letter-spacing: 1px;
-            color: #fff;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
-            text-align: center;
-            z-index: 1;
+            margin-top: 20px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.7);
+            transition: opacity .5s ease;
         }
 
         .cards-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-            padding: 15px;
+            margin-top: 20px;
             width: 90%;
             max-width: 400px;
-            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
         }
 
-.cards-row {
-    display: flex;
-    justify-content: center;
-    gap: 10px; /* меньшее расстояние между картами */
-    width: 100%;
-}
+        .cards-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
 
-.card {
-    background-color: transparent;
-    perspective: 1000px;
-    cursor: pointer;
-    aspect-ratio: 2/3;
-    position: relative;
-    width: 80px; /* карты стали меньше */
-    flex-shrink: 0;
-}
+        .card {
+            width: 80px;
+            aspect-ratio: 2/3;
+            cursor: pointer;
+            position: relative;
+            perspective: 1000px;
+            transition: transform .4s ease, opacity .4s ease;
+        }
 
+        /* исчезновение */
+        .fade-out {
+            opacity: 0;
+            transform: scale(0.7);
+        }
+
+        /* движение в центр */
+        .move-center {
+            animation: moveToCenter .6s ease forwards;
+        }
+
+        @keyframes moveToCenter {
+            0% { transform: translate(0,0) scale(1); }
+            100% { transform: translate(0, -40px) scale(1.1); }
+        }
 
         .card-inner {
-            position: relative;
             width: 100%;
             height: 100%;
-            text-align: center;
-            transition: transform 0.8s;
+            position: relative;
+            transition: transform .8s;
             transform-style: preserve-3d;
-            border-radius: 15px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            border-radius: 12px;
         }
 
         .card.flipped .card-inner {
@@ -88,183 +97,173 @@
         }
 
         .card.selected .card-inner {
-            box-shadow: 0 0 20px 5px #ffd700, 0 0 30px 10px rgba(255, 215, 0, 0.5);
+            box-shadow: 0 0 20px 6px gold;
         }
 
         .card-front, .card-back {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            -webkit-backface-visibility: hidden;
+            inset: 0;
             backface-visibility: hidden;
-            border-radius: 15px;
+            border-radius: 12px;
             overflow: hidden;
         }
 
         .card-front {
-            background: url('cart.png') no-repeat center center;
-            background-size: cover;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: url('cart.png') center/cover;
         }
 
         .card-back {
-            background: #fff;
             transform: rotateY(180deg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: white;
         }
-        
+
         .card-back img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 13px;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
-        
-        .card:not(.flipped) {
-            animation: pulse 3s infinite ease-in-out;
-        }
-
-        .loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            padding: 20px;
+        #continueBtn {
+            display: none;
+            margin-top: 30px;
+            padding: 14px 26px;
+            background: #ffd700;
+            color: #000;
             border-radius: 10px;
-            z-index: 1000;
-            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity .5s ease, transform .5s ease;
         }
 
+        #continueBtn.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
     </style>
 </head>
+
 <body>
 
-    <h2>Выберите 3 карты</h2>
+<h2 id="title">Выберите 3 карты</h2>
 
-    <div class="cards-container" id="container">
-        <!-- Карты будут сгенерированы скриптом -->
-    </div>
+<div class="cards-container" id="container"></div>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation(); // Предупреждение при закрытии
+<button id="continueBtn">Продолжить</button>
 
-        const container = document.getElementById('container');
-        let selectedCards = [];
-        const MAX_SELECTION = 3;
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
 
-        // Создаем массив с доступными картами (от m1 до m12)
-        const availableCards = Array.from({length: 12}, (_, i) => `m${i+1}.jpg`);
-        
-        // Перемешиваем карты случайным образом
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
+    const container = document.getElementById("container");
+    const continueBtn = document.getElementById("continueBtn");
+    const title = document.getElementById("title");
+
+    let selectedCards = [];
+    const MAX_SELECTION = 3;
+
+    const availableCards = Array.from({length: 12}, (_, i) => `m${i+1}.jpg`);
+
+    function shuffle(arr) {
+        return arr.sort(() => Math.random() - 0.5);
+    }
+
+    const shuffledCards = shuffle([...availableCards]).slice(0, 7);
+
+    function createLayout() {
+        const topRow = document.createElement("div");
+        topRow.className = "cards-row";
+
+        const bottomRow = document.createElement("div");
+        bottomRow.className = "cards-row";
+
+        for (let i = 0; i < 3; i++) topRow.appendChild(createCard(i, shuffledCards[i]));
+        for (let i = 3; i < 7; i++) bottomRow.appendChild(createCard(i, shuffledCards[i]));
+
+        container.appendChild(topRow);
+        container.appendChild(bottomRow);
+    }
+
+    function createCard(id, img) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.cardName = img;
+
+        card.innerHTML = `
+            <div class="card-inner">
+                <div class="card-front"></div>
+                <div class="card-back"><img src="${img}"></div>
+            </div>
+        `;
+
+        card.onclick = () => handleSelect(card);
+        return card;
+    }
+
+    function handleSelect(card) {
+        if (selectedCards.length >= MAX_SELECTION || card.classList.contains("flipped")) return;
+
+        card.classList.add("flipped");
+        card.classList.add("selected");
+
+        selectedCards.push(card.dataset.cardName);
+
+        if (selectedCards.length === MAX_SELECTION) {
+            animateFinal();
         }
-        
-        const shuffledCards = shuffleArray([...availableCards]).slice(0, 7);
+    }
 
-        // Создаем два ряда карт: 3 сверху и 4 снизу
-        function createCardsLayout() {
-            // Верхний ряд - 3 карты
-            const topRow = document.createElement('div');
-            topRow.className = 'cards-row';
-            
-            for (let i = 0; i < 3; i++) {
-                const card = createCard(i, shuffledCards[i]);
-                topRow.appendChild(card);
-            }
-            
-            // Нижний ряд - 4 карты
-            const bottomRow = document.createElement('div');
-            bottomRow.className = 'cards-row';
-            
-            for (let i = 3; i < 7; i++) {
-                const card = createCard(i, shuffledCards[i]);
-                bottomRow.appendChild(card);
-            }
-            
-            container.appendChild(topRow);
-            container.appendChild(bottomRow);
-        }
+    function animateFinal() {
+        title.style.opacity = 0;
 
-        function createCard(id, cardImage) {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.dataset.id = id;
-            card.dataset.cardName = cardImage;
-            
-            card.innerHTML = `
+        const allCards = document.querySelectorAll(".card");
+
+        allCards.forEach(card => {
+            if (!card.classList.contains("selected")) {
+                card.classList.add("fade-out");
+            } else {
+                card.classList.add("move-center");
+            }
+        });
+
+        setTimeout(() => {
+            showSelectedOnly();
+        }, 600);
+    }
+
+    function showSelectedOnly() {
+        container.innerHTML = "";
+
+        const row = document.createElement("div");
+        row.className = "cards-row";
+
+        selectedCards.forEach(img => {
+            const c = document.createElement("div");
+            c.className = "card flipped selected";
+            c.innerHTML = `
                 <div class="card-inner">
                     <div class="card-front"></div>
-                    <div class="card-back">
-                        <img src="${cardImage}" alt="Карта Таро">
-                    </div>
-                </div>
-            `;
+                    <div class="card-back"><img src="${img}"></div>
+                </div>`;
+            row.appendChild(c);
+        });
 
-            card.addEventListener('click', () => handleCardClick(card, id));
-            return card;
-        }
+        container.appendChild(row);
 
-        function handleCardClick(cardElement, id) {
-            if (selectedCards.length >= MAX_SELECTION || cardElement.classList.contains('flipped')) {
-                return;
-            }
+        // показать кнопку
+        continueBtn.classList.add("show");
+    }
 
-            // Тактильная отдача
-            if (tg.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('light');
-            }
+    continueBtn.onclick = () => {
+        tg.sendData(JSON.stringify(selectedCards));
+        tg.close();
+    };
 
-            cardElement.classList.add('flipped');
-            cardElement.classList.add('selected');
-            selectedCards.push({
-                id: id,
-                cardName: cardElement.dataset.cardName
-            });
+    createLayout();
+</script>
 
-            if (selectedCards.length === MAX_SELECTION) {
-                // Показываем сообщение о загрузке
-                const loading = document.createElement('div');
-                loading.className = 'loading';
-                loading.textContent = 'Отправляем результат...';
-                document.body.appendChild(loading);
-
-                setTimeout(() => {
-                    sendDataToBot();
-                }, 1500);
-            }
-        }
-
-        function sendDataToBot() {
-            const data = JSON.stringify(selectedCards);
-            
-            // Отправляем данные и закрываем Mini App
-            tg.sendData(data);
-            
-            // Закрываем Mini App через небольшую задержку
-            setTimeout(() => {
-                tg.close();
-            }, 500);
-        }
-
-        // Создаем layout карт
-        createCardsLayout();
-    </script>
 </body>
 </html>

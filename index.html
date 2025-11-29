@@ -6,6 +6,7 @@
     <title>Tarot Selector</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        /* Ваши существующие стили остаются без изменений */
         body {
             background: linear-gradient(135deg, #1a0b2e 0%, #2d1b4e 100%);
             color: #fff;
@@ -23,7 +24,7 @@
             margin-bottom: 20px;
             font-weight: 300;
             letter-spacing: 1px;
-            color: #d4af37; /* Золотой цвет */
+            color: #d4af37;
             text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
         }
 
@@ -36,16 +37,14 @@
             max-width: 400px;
         }
 
-        /* Стиль карты (контейнер) */
         .card {
             background-color: transparent;
             perspective: 1000px;
             cursor: pointer;
-            aspect-ratio: 2/3; /* Пропорции карты */
+            aspect-ratio: 2/3;
             position: relative;
         }
 
-        /* Внутренняя часть для анимации */
         .card-inner {
             position: relative;
             width: 100%;
@@ -57,12 +56,10 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.5);
         }
 
-        /* Класс для переворота */
         .card.flipped .card-inner {
             transform: rotateY(180deg);
         }
 
-        /* Общие стили для сторон */
         .card-front, .card-back {
             position: absolute;
             width: 100%;
@@ -76,15 +73,11 @@
             justify-content: center;
         }
 
-        /* Рубашка карты (видима сначала) */
         .card-front {
             background: radial-gradient(circle, #3a2258 0%, #110522 100%);
-            background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="2" cy="2" r="1" fill="%23d4af37" opacity="0.3"/></svg>'); 
-            /* Если есть картинка рубашки, раскомментируй строку ниже */
-            /* background-image: url('back.jpg'); background-size: cover; */
+            background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="2" cy="2" r="1" fill="%23d4af37" opacity="0.3"/></svg>');
         }
         
-        /* Узор на рубашке (звездочка или символ) */
         .card-front::after {
             content: "✦";
             font-size: 40px;
@@ -92,7 +85,6 @@
             opacity: 0.7;
         }
 
-        /* Лицо карты (видима после переворота) */
         .card-back {
             background: #fff;
             color: #000;
@@ -105,7 +97,6 @@
             font-size: 40px;
         }
 
-        /* Анимация пульсации для невыбранных карт */
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.02); }
@@ -116,6 +107,18 @@
             animation: pulse 3s infinite ease-in-out;
         }
 
+        /* Добавляем стиль для сообщения о загрузке */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1000;
+        }
+
     </style>
 </head>
 <body>
@@ -123,11 +126,13 @@
     <h2>Выберите 2 карты</h2>
 
     <div class="cards-container" id="container">
-        </div>
+        <!-- Карты будут сгенерированы скриптом -->
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Раскрыть на весь экран
+        tg.expand();
+        tg.enableClosingConfirmation(); // Предупреждение при закрытии
 
         const container = document.getElementById('container');
         let selectedCards = [];
@@ -137,7 +142,7 @@
         for (let i = 1; i <= 6; i++) {
             const card = document.createElement('div');
             card.className = 'card';
-            card.dataset.id = i; // ID карты
+            card.dataset.id = i;
             
             card.innerHTML = `
                 <div class="card-inner">
@@ -151,33 +156,41 @@
         }
 
         function handleCardClick(cardElement, id) {
-            // Если уже выбрано 2 карты или эта карта уже перевернута - ничего не делаем
             if (selectedCards.length >= MAX_SELECTION || cardElement.classList.contains('flipped')) {
                 return;
             }
 
-            // Визуальный эффект вибрации (тактильная отдача)
+            // Тактильная отдача
             if (tg.HapticFeedback) {
                 tg.HapticFeedback.impactOccurred('light');
             }
 
-            // Переворачиваем
             cardElement.classList.add('flipped');
             selectedCards.push(id);
 
-            // Если выбрали 2 карты
             if (selectedCards.length === MAX_SELECTION) {
-                // Небольшая задержка, чтобы пользователь увидел анимацию переворота
+                // Показываем сообщение о загрузке
+                const loading = document.createElement('div');
+                loading.className = 'loading';
+                loading.textContent = 'Отправляем результат...';
+                document.body.appendChild(loading);
+
                 setTimeout(() => {
                     sendDataToBot();
-                }, 1000); 
+                }, 1500);
             }
         }
 
         function sendDataToBot() {
-            // Отправляем данные обратно в бота (массив ID выбранных карт)
             const data = JSON.stringify(selectedCards);
-            tg.sendData(data); 
+            
+            // Отправляем данные и закрываем Mini App
+            tg.sendData(data);
+            
+            // Закрываем Mini App через небольшую задержку
+            setTimeout(() => {
+                tg.close();
+            }, 500);
         }
     </script>
 </body>

@@ -6,9 +6,9 @@
     <title>Tarot Selector</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Ваши существующие стили остаются без изменений */
         body {
-            background: linear-gradient(135deg, #1a0b2e 0%, #2d1b4e 100%);
+            background: url('bg.jpeg') no-repeat center center fixed;
+            background-size: cover;
             color: #fff;
             font-family: sans-serif;
             display: flex;
@@ -18,23 +18,47 @@
             min-height: 100vh;
             margin: 0;
             overflow: hidden;
+            position: relative;
+        }
+
+        /* Затемнение фона для лучшей читаемости */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: -1;
         }
 
         h2 {
             margin-bottom: 20px;
             font-weight: 300;
             letter-spacing: 1px;
-            color: #d4af37;
-            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+            text-align: center;
+            z-index: 1;
         }
 
         .cards-container {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 15px;
             width: 90%;
             max-width: 400px;
+            z-index: 1;
+        }
+
+        .cards-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
         }
 
         .card {
@@ -43,6 +67,8 @@
             cursor: pointer;
             aspect-ratio: 2/3;
             position: relative;
+            width: 100px; /* Фиксированная ширина для карт */
+            flex-shrink: 0;
         }
 
         .card-inner {
@@ -52,12 +78,16 @@
             text-align: center;
             transition: transform 0.8s;
             transform-style: preserve-3d;
-            border-radius: 10px;
+            border-radius: 15px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.5);
         }
 
         .card.flipped .card-inner {
             transform: rotateY(180deg);
+        }
+
+        .card.selected .card-inner {
+            box-shadow: 0 0 20px 5px #ffd700, 0 0 30px 10px rgba(255, 215, 0, 0.5);
         }
 
         .card-front, .card-back {
@@ -66,35 +96,30 @@
             height: 100%;
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
-            border-radius: 10px;
-            border: 2px solid #d4af37;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border-radius: 15px;
+            overflow: hidden;
         }
 
         .card-front {
-            background: radial-gradient(circle, #3a2258 0%, #110522 100%);
-            background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="2" cy="2" r="1" fill="%23d4af37" opacity="0.3"/></svg>');
-        }
-        
-        .card-front::after {
-            content: "✦";
-            font-size: 40px;
-            color: #d4af37;
-            opacity: 0.7;
+            background: url('cart.png') no-repeat center center;
+            background-size: cover;
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
         .card-back {
             background: #fff;
-            color: #000;
             transform: rotateY(180deg);
-            background: linear-gradient(to bottom right, #eee, #ddd);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
         
-        .card-back::after {
-            content: "🔮";
-            font-size: 40px;
+        .card-back img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 13px;
         }
 
         @keyframes pulse {
@@ -107,7 +132,6 @@
             animation: pulse 3s infinite ease-in-out;
         }
 
-        /* Добавляем стиль для сообщения о загрузке */
         .loading {
             position: fixed;
             top: 50%;
@@ -117,13 +141,14 @@
             padding: 20px;
             border-radius: 10px;
             z-index: 1000;
+            color: white;
         }
 
     </style>
 </head>
 <body>
 
-    <h2>Выберите 2 карты</h2>
+    <h2>Выберите 3 карты</h2>
 
     <div class="cards-container" id="container">
         <!-- Карты будут сгенерированы скриптом -->
@@ -136,23 +161,63 @@
 
         const container = document.getElementById('container');
         let selectedCards = [];
-        const MAX_SELECTION = 2;
+        const MAX_SELECTION = 3;
 
-        // Генерируем 6 карт
-        for (let i = 1; i <= 6; i++) {
+        // Создаем массив с доступными картами (от m1 до m12)
+        const availableCards = Array.from({length: 12}, (_, i) => `m${i+1}.jpg`);
+        
+        // Перемешиваем карты случайным образом
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+        
+        const shuffledCards = shuffleArray([...availableCards]).slice(0, 7);
+
+        // Создаем два ряда карт: 3 сверху и 4 снизу
+        function createCardsLayout() {
+            // Верхний ряд - 3 карты
+            const topRow = document.createElement('div');
+            topRow.className = 'cards-row';
+            
+            for (let i = 0; i < 3; i++) {
+                const card = createCard(i, shuffledCards[i]);
+                topRow.appendChild(card);
+            }
+            
+            // Нижний ряд - 4 карты
+            const bottomRow = document.createElement('div');
+            bottomRow.className = 'cards-row';
+            
+            for (let i = 3; i < 7; i++) {
+                const card = createCard(i, shuffledCards[i]);
+                bottomRow.appendChild(card);
+            }
+            
+            container.appendChild(topRow);
+            container.appendChild(bottomRow);
+        }
+
+        function createCard(id, cardImage) {
             const card = document.createElement('div');
             card.className = 'card';
-            card.dataset.id = i;
+            card.dataset.id = id;
+            card.dataset.cardName = cardImage;
             
             card.innerHTML = `
                 <div class="card-inner">
                     <div class="card-front"></div>
-                    <div class="card-back"></div>
+                    <div class="card-back">
+                        <img src="${cardImage}" alt="Карта Таро">
+                    </div>
                 </div>
             `;
 
-            card.addEventListener('click', () => handleCardClick(card, i));
-            container.appendChild(card);
+            card.addEventListener('click', () => handleCardClick(card, id));
+            return card;
         }
 
         function handleCardClick(cardElement, id) {
@@ -166,7 +231,11 @@
             }
 
             cardElement.classList.add('flipped');
-            selectedCards.push(id);
+            cardElement.classList.add('selected');
+            selectedCards.push({
+                id: id,
+                cardName: cardElement.dataset.cardName
+            });
 
             if (selectedCards.length === MAX_SELECTION) {
                 // Показываем сообщение о загрузке
@@ -188,8 +257,13 @@
             tg.sendData(data);
             
             // Закрываем Mini App через небольшую задержку
+            setTimeout(() => {
+                tg.close();
+            }, 500);
         }
+
+        // Создаем layout карт
+        createCardsLayout();
     </script>
 </body>
 </html>
-

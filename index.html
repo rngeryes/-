@@ -54,22 +54,23 @@
             z-index: 1;
         }
 
-        .cards-row {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            width: 100%;
-        }
+.cards-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* меньшее расстояние между картами */
+    width: 100%;
+}
 
-        .card {
-            background-color: transparent;
-            perspective: 1000px;
-            cursor: pointer;
-            aspect-ratio: 2/3;
-            position: relative;
-            width: 100px; /* Фиксированная ширина для карт */
-            flex-shrink: 0;
-        }
+.card {
+    background-color: transparent;
+    perspective: 1000px;
+    cursor: pointer;
+    aspect-ratio: 2/3;
+    position: relative;
+    width: 80px; /* карты стали меньше */
+    flex-shrink: 0;
+}
+
 
         .card-inner {
             position: relative;

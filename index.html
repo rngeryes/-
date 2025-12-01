@@ -20,12 +20,8 @@
             color: #fff;
             overflow: hidden;
             position: relative;
+            justify-content: center; 
         }
-
-body {
-    justify-content: center;
-}
-
 
         body::before {
             content: "";
@@ -50,12 +46,16 @@ body {
             gap: 20px;
             justify-content: center;
             align-items: center;
+            /* Важно: плавное изменение при перестроении */
+            transition: all 1s ease-in-out; 
         }
 
         .cards-row {
             display: flex;
             justify-content: center;
             gap: 10px;
+            /* Важно: плавное изменение при удалении других row */
+            transition: all 1s ease-in-out; 
         }
 
         .card {
@@ -64,25 +64,22 @@ body {
             cursor: pointer;
             position: relative;
             perspective: 1000px;
-            transition: transform .4s ease, opacity .4s ease;
+            /* КЛЮЧЕВО: Очень длительный переход, чтобы Flexbox-перестроение было плавным */
+            transition: transform 1s ease-in-out, opacity 0.5s ease; 
         }
 
-        /* исчезновение */
+        /* Элемент просто исчезает, чтобы не мешать перестроению */
         .fade-out {
             opacity: 0;
             transform: scale(0.7);
         }
 
-        /* движение в центр */
-        .move-center {
-            animation: moveToCenter .6s ease forwards;
+        /* Удаление ненужных классов анимации для упрощения */
+        .card.selected {
+             /* Убираем анимацию move-center */
+            animation: none !important; 
         }
-
-        @keyframes moveToCenter {
-            0% { transform: translate(0,0) scale(1); }
-            100% { transform: translate(0, -40px) scale(1.1); }
-        }
-
+        
         .card-inner {
             width: 100%;
             height: 100%;
@@ -165,32 +162,36 @@ body {
     let selectedCards = [];
     const MAX_SELECTION = 3;
 
-    const availableCards = Array.from({length: 12}, (_, i) => `m${i+1}.jpg`);
+    const availableCards = Array.from({length: 12}, (_, i) => `m${i+1}.jpg`); 
 
     function shuffle(arr) {
         return arr.sort(() => Math.random() - 0.5);
     }
 
-    const shuffledCards = shuffle([...availableCards]).slice(0, 7);
+    const shuffledCards = shuffle([...availableCards]).slice(0, 7); 
+
+    let topRowElement;
+    let bottomRowElement;
 
     function createLayout() {
-        const topRow = document.createElement("div");
-        topRow.className = "cards-row";
+        topRowElement = document.createElement("div");
+        topRowElement.className = "cards-row top-row";
+        
+        bottomRowElement = document.createElement("div");
+        bottomRowElement.className = "cards-row bottom-row";
 
-        const bottomRow = document.createElement("div");
-        bottomRow.className = "cards-row";
+        for (let i = 0; i < 3; i++) topRowElement.appendChild(createCard(i, shuffledCards[i]));
+        for (let i = 3; i < 7; i++) bottomRowElement.appendChild(createCard(i, shuffledCards[i]));
 
-        for (let i = 0; i < 3; i++) topRow.appendChild(createCard(i, shuffledCards[i]));
-        for (let i = 3; i < 7; i++) bottomRow.appendChild(createCard(i, shuffledCards[i]));
-
-        container.appendChild(topRow);
-        container.appendChild(bottomRow);
+        container.appendChild(topRowElement);
+        container.appendChild(bottomRowElement);
     }
 
     function createCard(id, img) {
         const card = document.createElement("div");
         card.className = "card";
         card.dataset.cardName = img;
+        card.dataset.cardId = id;
 
         card.innerHTML = `
             <div class="card-inner">
@@ -209,7 +210,7 @@ body {
         card.classList.add("flipped");
         card.classList.add("selected");
 
-        selectedCards.push(card.dataset.cardName);
+        selectedCards.push(card);
 
         if (selectedCards.length === MAX_SELECTION) {
             animateFinal();
@@ -220,45 +221,57 @@ body {
         title.style.opacity = 0;
 
         const allCards = document.querySelectorAll(".card");
-
+        const cardsToRemove = [];
+        
         allCards.forEach(card => {
             if (!card.classList.contains("selected")) {
                 card.classList.add("fade-out");
-            } else {
-                card.classList.add("move-center");
+                cardsToRemove.push(card);
             }
         });
 
+        // Шаг 1: Ждем завершения анимации исчезновения (0.5с)
         setTimeout(() => {
+            // Удаляем невыбранные карты из DOM, пока они невидимы
+            cardsToRemove.forEach(card => card.remove());
+            
+            // Шаг 2: Инициируем перестроение (показываем только выбранные карты)
             showSelectedOnly();
-        }, 600);
+        }, 500); 
     }
 
     function showSelectedOnly() {
-        container.innerHTML = "";
+        const selectedCardsRow = document.createElement("div");
+        selectedCardsRow.className = "cards-row";
+        
+        // Перемещаем существующие DOM-элементы выбранных карт в новый ряд
+        selectedCards.forEach(cardElement => {
+            // Убеждаемся, что элемент в правильном состоянии для плавного перестроения
+            cardElement.style.transform = 'none'; 
+            cardElement.style.opacity = '1';
 
-        const row = document.createElement("div");
-        row.className = "cards-row";
-
-        selectedCards.forEach(img => {
-            const c = document.createElement("div");
-            c.className = "card flipped selected";
-            c.innerHTML = `
-                <div class="card-inner">
-                    <div class="card-front"></div>
-                    <div class="card-back"><img src="${img}"></div>
-                </div>`;
-            row.appendChild(c);
+            // Удаляем класс move-center, если он вдруг остался
+            cardElement.classList.remove("move-center"); 
+            
+            selectedCardsRow.appendChild(cardElement);
         });
 
-        container.appendChild(row);
+        // Удаляем старые ряды из контейнера
+        if (topRowElement) topRowElement.remove();
+        if (bottomRowElement) bottomRowElement.remove();
 
-        // показать кнопку
-        continueBtn.classList.add("show");
+        // Добавляем новый ряд
+        container.appendChild(selectedCardsRow);
+
+        // Показываем кнопку
+        setTimeout(() => {
+            continueBtn.classList.add("show");
+        }, 1000); // Дополнительная задержка (1 секунда) для завершения плавного перестроения
     }
 
     continueBtn.onclick = () => {
-        tg.sendData(JSON.stringify(selectedCards));
+        const cardNames = selectedCards.map(card => card.dataset.cardName);
+        tg.sendData(JSON.stringify(cardNames));
         tg.close();
     };
 
